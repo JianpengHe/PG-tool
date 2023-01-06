@@ -1,0 +1,139 @@
+<html>
+  <style>
+    [pg-bind] {
+      display: none;
+    }
+  </style>
+
+  <div pg-bind="abc">
+    <span>{{name}}</span>
+    <div pg-bind="s">{{age}}</div>
+    <img src="666" {{777}} />
+  </div>
+
+  <script>
+    var bindProxy = function (tdom, obj) {
+      return new Proxy(obj || {}, {
+        get: function (obj, key) {
+          return obj[key];
+        },
+        set: function (obj, key, value) {
+          if (!(value instanceof Object)) {
+            throw new Error("must bind object");
+          }
+          var dom = (tdom || document).querySelector("[pg-bind=" + key + "]");
+          if (!dom) {
+            console.dir(dom);
+            throw new Error(key + " in dom do not found");
+          }
+          const oldChildrenDom = dom.___PG_children_dom;
+          console.log(key, value, dom, oldChildrenDom);
+          if (Array.isArray(oldChildrenDom)) {
+            oldChildrenDom.forEach(function (childrenDom) {
+              childrenDom.parentNode.removeChild(childrenDom);
+            });
+          }
+          if (Array.isArray(value)) {
+            var tagName = dom.tagName.toLowerCase();
+            var isSelfClosing =
+              dom.outerHTML
+                .substring(dom.outerHTML.length - 3 - tagName.length)
+                .toLowerCase() !==
+              "</" + tagName + ">";
+            var attributes = dom.outerHTML
+              .substring(
+                tagName.length + 1,
+                dom.outerHTML.length -
+                  dom.innerHTML.length -
+                  1 -
+                  (isSelfClosing ? 0 : tagName.length + 3)
+              )
+              .trim();
+            var parentNode = dom.parentNode;
+            var id = "PG" + Math.random();
+            dom.id = id;
+            console.log(dom.outerHTML);
+            dom.outerHTML += value
+              .map(function (item) {
+                return (
+                  "<" +
+                  tagName +
+                  (attributes ? " " : "") +
+                  attributes +
+                  (isSelfClosing
+                    ? "/>"
+                    : ">" + dom.innerHTML + "</" + tagName + ">")
+                );
+              })
+              .join("");
+
+            dom = document.getElementById(id);
+            dom.attributes.removeNamedItem("id");
+            console.log(dom.outerHTML);
+            var newDom = dom;
+            dom.___PG_children_dom = value.map(function (item, i) {
+              newDom = newDom.nextSibling;
+              newDom.attributes.getNamedItem("pg-bind") &&
+                newDom.attributes.removeNamedItem("pg-bind");
+              newDom.attributes.getNamedItem("id") &&
+                newDom.attributes.removeNamedItem("id");
+              value[i] = bindProxy(newDom, item);
+              return newDom;
+            });
+          } else {
+          }
+          obj[key] = value;
+        },
+      });
+    };
+    var pg = bindProxy();
+
+    pg.abc = [
+      {
+        name: "小明",
+        s: [
+          {
+            age: 1,
+          },
+          {
+            age: 2,
+          },
+        ],
+      },
+      {
+        name: "小明",
+        s: [
+          {
+            age: 1,
+          },
+          {
+            age: 2,
+          },
+        ],
+      },
+    ];
+    setTimeout(() => {
+      pg.abc = [
+        {
+          name: "小明2",
+        },
+      ];
+    }, 3000);
+
+    // var dom=document.getElementsByTagName("div")[0]
+    // var tagName = dom.tagName.toLowerCase();
+    //           var isSelfClosing =
+    //             dom.outerHTML
+    //               .substring(dom.outerHTML.length - 3 - tagName.length)
+    //               .toLowerCase() !==
+    //             "</" + tagName + ">";
+    //           var attributes = dom.outerHTML.substring(
+    //             tagName.length + 1,
+    //             dom.outerHTML.length -
+    //               dom.innerHTML.length -
+    //               1 -
+    //               (isSelfClosing ? 0 : tagName.length + 3)
+    //           );
+    //           console.log(tagName,isSelfClosing,attributes)
+  </script>
+</html>

@@ -1,0 +1,142 @@
+<html>
+  <style>
+    [pg-bind] {
+      display: none;
+    }
+  </style>
+
+  <div pg-bind="abc">
+    <span>{{name}}</span>
+    <div pg-bind="s">{{age}}</div>
+    <img src="666" {{777}} />
+  </div>
+
+  <script>
+    var bindProxy = function (tdom, obj) {
+      return new Proxy(obj || {}, {
+        get: function (obj, key) {
+          return obj[key];
+        },
+        set: function (obj, key, value) {
+          if (value instanceof Object) {
+            // throw new Error("must bind object");
+            var dom = (tdom || document).querySelector("[pg-bind=" + key + "]");
+            if (!dom) {
+              console.dir(dom);
+              throw new Error(key + " in dom do not found");
+            }
+            const oldChildrenDom = dom.___PG_children_dom;
+            // console.log(key, value, dom, oldChildrenDom);
+            if (Array.isArray(oldChildrenDom)) {
+              oldChildrenDom.forEach(function (childrenDom) {
+                childrenDom.parentNode.removeChild(childrenDom);
+              });
+            }
+            if (Array.isArray(value)) {
+              var tagName = dom.tagName.toLowerCase();
+              dom.___PG_children_dom = value.map(function (item, i) {
+                if (!item instanceof Object) {
+                  throw new Error("must object");
+                }
+                var newDom = document.createElement(tagName);
+                Array.from(dom.attributes).forEach(function (attr) {
+                  if (attr.name === "id" || attr.name === "pg-bind") {
+                    return;
+                  }
+                  newDom.setAttribute(attr.name, attr.value);
+                });
+                newDom.innerHTML = dom.innerHTML;
+                dom.parentNode.insertBefore(newDom, dom);
+                value[i] = bindProxy(newDom);
+                for (var k in item) {
+                  value[i][k] = item[k];
+                }
+                var bin = function (d) {
+                  if (d.children.length) {
+                    Array.from(d.children).forEach(bin);
+                    return;
+                  }
+                  if (d.getAttribute("pg-bind")) {
+                    return;
+                  }
+                  if (d.innerHTML.trim()) {
+                    var str = "";
+                    var str2 = d.innerHTML.substring(
+                      Array.from(
+                        d.innerHTML.matchAll(/\{\{([^}]+)\}\}/g) || []
+                      ).reduce(function (lastIndex, res) {
+                        str +=
+                          d.innerHTML.substring(
+                            lastIndex,
+                            res.index - lastIndex
+                          ) + (item[res[1]] === undefined ? "" : item[res[1]]);
+                        return res.index + res[0].length;
+                      }, 0)
+                    );
+                    d.innerHTML = str + str2;
+                  }
+                };
+                bin(newDom);
+                return newDom;
+              });
+            } else {
+            }
+          }
+          obj[key] = value;
+        },
+        apply: function () {
+          return tdom || document;
+        },
+      });
+    };
+    var pg = bindProxy();
+
+    pg.abc = [
+      {
+        name: "小明",
+        s: [
+          {
+            age: 1,
+          },
+          {
+            age: 2,
+          },
+        ],
+      },
+      {
+        name: "小明",
+        s: [
+          {
+            age: 1,
+          },
+          {
+            age: 2,
+          },
+        ],
+      },
+    ];
+    setTimeout(() => {
+      pg.abc = [
+        {
+          name: "小明2",
+        },
+      ];
+    }, 3000);
+
+    // var dom=document.getElementsByTagName("div")[0]
+    // var tagName = dom.tagName.toLowerCase();
+    //           var isSelfClosing =
+    //             dom.outerHTML
+    //               .substring(dom.outerHTML.length - 3 - tagName.length)
+    //               .toLowerCase() !==
+    //             "</" + tagName + ">";
+    //           var attributes = dom.outerHTML.substring(
+    //             tagName.length + 1,
+    //             dom.outerHTML.length -
+    //               dom.innerHTML.length -
+    //               1 -
+    //               (isSelfClosing ? 0 : tagName.length + 3)
+    //           );
+    //           console.log(tagName,isSelfClosing,attributes)
+  </script>
+</html>
